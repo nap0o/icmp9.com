@@ -49,7 +49,7 @@ bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.co
 
 ### [必需] 5.部署仅支持docker方式，请从以下3个部署方式选择
 
-#### 方式1：使用一键交互脚本部署
+#### [推荐] 🔥🔥方式1：使用一键交互脚本部署
 
 ```bash
 bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install.sh)  
@@ -57,12 +57,11 @@ bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.co
 
 **cloudflare临时隧道模式执行日志**
 
-<img height="600" src="https://github.com/user-attachments/assets/3a67cd2f-ca15-46ed-a332-552388441ea9" /><br />
-
+<img height="600" alt="image" src="https://github.com/user-attachments/assets/75562fb9-c507-4e30-a221-563da827b54f" /><br />
 
 **cloudflare固定隧道模式执行日志**
 
-<img height="600" src="https://github.com/user-attachments/assets/3a67cd2f-ca15-46ed-a332-552388441ea9" /><br />
+<img height="600" src="https://github.com/user-attachments/assets/39492198-1853-45f3-97b9-e2a4f7f82d92" /><br />
 
 #### 方式2：Docker run方式
 

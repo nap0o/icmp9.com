@@ -59,7 +59,7 @@ while [ -z "$API_KEY" ]; do
     read -r API_KEY
 done
 
-# 选择隧道模式 (修改：交换了1和2的顺序)
+# 选择隧道模式
 printf "\n2. 请选择 Cloudflare 隧道模式:\n"
 printf "   [1] 临时隧道 (随机域名，无需配置)\n"
 printf "   [2] 固定隧道 (需要自备域名和Token)\n"
@@ -90,7 +90,7 @@ fi
 # IPv6 设置
 printf "\n3. 是否仅 IPv6 (True/False) [默认: False]: "
 read -r IPV6_INPUT
-[ -z "$IPV6_INPUT" ] && IPV6_ONLY="False" || IPV6_ONLY=$IPV6_INPUT
+IPV6_ONLY=$(echo "${IPV6_INPUT:-false}" | tr '[:upper:]' '[:lower:]')
 
 # CDN 设置
 printf "4. 请输入 CDN 优选 IP 或域名 [默认: icook.tw]: "
@@ -134,6 +134,19 @@ read -r START_NOW
 [ -z "$START_NOW" ] && START_NOW="y"
 
 if [ "$START_NOW" = "y" ] || [ "$START_NOW" = "Y" ]; then
+    
+    # --- 1: 清理旧容器 ---
+    # 检查是否有名为 icmp9 的容器（运行中或停止状态）
+    if docker ps -a --format '{{.Names}}' | grep -q "^icmp9$"; then
+        warn "⚠️ 检测到已存在 icmp9 容器，正在停止并删除..."
+        docker rm -f icmp9 >/dev/null 2>&1
+        info "✅ 旧容器已清理"
+    fi
+
+    # --- 2: 强制拉取最新镜像 ---
+    info "⬇️ 正在拉取最新镜像 (nap0o/icmp9:latest)..."
+    $DOCKER_COMPOSE_CMD pull
+    
     info "🚀 正在启动容器..."
     $DOCKER_COMPOSE_CMD up -d
     
