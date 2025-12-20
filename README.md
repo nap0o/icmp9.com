@@ -1,15 +1,24 @@
 # 简单部署流程
 
+### 概要
+
+利用 [icmp9.com](https://icmp9.com/proxy) 提供的免费代理网络，借助1台vps实现聚合多个国家的网络节点。
+
 ### 效果图
 <img height="300" alt="image" src="https://github.com/user-attachments/assets/3ab617cf-94e4-46fb-ae15-ed219f2a5896" />
 
 <img height="300" alt="image" src="https://github.com/user-attachments/assets/b90eb30c-44f6-42f2-bcc0-a30d737d14ae" />
 
+### 前提条件
+
+1. 拥有任意1台有公网IP的VPS，可以是icmp9送的虚机，也可以是其他的， VPS可以是IP双栈，也可以是任意IP单栈(也就是只有ipv4或ipv6都可以)。以下所有脚本命令只需要在这台vps上执行即可
+2. 1个可以在Zero Trust创建隧道的Cloudflare账号
+
 ### 1.注册icmp9.com 账号，获取API KEY
 
 ![获取获取API KEYl 设置](https://github.com/user-attachments/assets/e55908be-f4e3-4294-aaee-4855fca2f3ec)
 
-### 2.放行部署VPS的IP地址，双栈IP的VPS，IPv4和IPv6地址都要放行
+### 2.放行VPS的IP地址，双栈IP的VPS，IPv4和IPv6地址都要放行
 ![放行部署VPS的IP地址](https://github.com/user-attachments/assets/ceb9037d-3bdd-4789-9f71-207e6bc2c094)
 
 ### 3.Cloudflare隧道相关
@@ -39,11 +48,13 @@ bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.co
 <img height="350" alt="image" src="https://github.com/user-attachments/assets/fe436d79-25b0-4276-81b3-c4c2265fa35d" /><br /> 
 
 
-- **使用一键交互脚本部署脚本**
+- **使用一键交互脚本部署**
 
 ```bash
 bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install.sh)  
-``` 
+```
+
+<img height="600" src="https://github.com/user-attachments/assets/3a67cd2f-ca15-46ed-a332-552388441ea9" />
 
 #### Docker run方式
 
@@ -60,7 +71,7 @@ docker run -d \
   -e ICMP9_START_PORT=39001 \
   -v "$(pwd)/data/subscribe:/root/subscribe" \
   nap0o/icmp9:latest
-```  
+```
 
 #### Docker compose方式
 
@@ -117,3 +128,4 @@ https://{ICMP9_SERVER_HOST}/{ICMP9_API_KEY}
 - https://github.com/fscarmen/ArgoX
 
 - https://github.com/fscarmen/client_template
+
