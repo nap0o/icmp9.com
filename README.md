@@ -1,4 +1,4 @@
-#  简单部署流程
+# 简单部署流程
 
 ### 效果图
 <img height="300" alt="image" src="https://github.com/user-attachments/assets/3ab617cf-94e4-46fb-ae15-ed219f2a5896" />
@@ -24,25 +24,28 @@
 
 ### 4. 部署仅支持docker方式
 
-**一键交互脚本方式**
+#### 一键交互脚本方式
 
-**[重要] icmp9.com送的VPS,请务必先设置1G swap虚拟内存,再部署！！ **
-
-**⚠️设置swap成功后需要重启VPS才能生效!!! **
+- **设置swap虚拟内存**
 
 ```bash
 bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/main/swap.sh)
 ```
 
-<img height="350" alt="image" src="https://github.com/user-attachments/assets/fe436d79-25b0-4276-81b3-c4c2265fa35d" />
+⚠️ icmp9.com送的VPS,请务必先设置1G swap虚拟内存,再部署一键脚本
 
-**部署脚本**
+⚠️ 设置swap成功后需要重启VPS才能生效
+
+<img height="350" alt="image" src="https://github.com/user-attachments/assets/fe436d79-25b0-4276-81b3-c4c2265fa35d" /><br /> 
+
+
+- **使用一键交互脚本部署脚本**
 
 ```bash
-bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install.sh)
-```
+bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install.sh)  
+``` 
 
-**Docker run方式**
+#### Docker run方式
 
 ```yaml
 docker run -d \
@@ -57,10 +60,9 @@ docker run -d \
   -e ICMP9_START_PORT=39001 \
   -v "$(pwd)/data/subscribe:/root/subscribe" \
   nap0o/icmp9:latest
-```
+```  
 
-
-**Docker compose方式**
+#### Docker compose方式
 
 ```yaml
 services:
@@ -94,7 +96,7 @@ services:
 docker logs icmp9
 ```
 
-<img src="https://github.com/user-attachments/assets/843a42f5-5245-4d6b-817b-17464f26c8fa" height="222">
+<img src="https://github.com/user-attachments/assets/843a42f5-5245-4d6b-817b-17464f26c8fa" height="222"><br />
 
 
 **方法2：手动拼接**
@@ -107,9 +109,10 @@ https://{ICMP9_SERVER_HOST}/{ICMP9_API_KEY}
 
 - {ICMP9_SERVER_HOST} 为 Cloudflare 隧道域名
 - {ICMP9_API_KEY} 为从 https://icmp9.com/user/dashboard 获取的 API KEY
-- 格式如： https://icmp9.nezha.pp.ua/b58828c1-4df5-4156-ee77-a889968533ae
+- 格式如： https://icmp9.nezha.pp.ua/b58828c1-4df5-4156-ee77-a889968533ae 
 
-###  感谢
+
+### 感谢
 
 - https://github.com/fscarmen/ArgoX
 
