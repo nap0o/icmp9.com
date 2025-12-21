@@ -15,15 +15,15 @@
    - VPS系统：支持Debian、Ubuntu、Alpine
    - VPS类型：支持独立VPS、NAT
    - VPS网络：支持IP双栈，支持IPv4或IPv6任意IP单栈
-   - VPS性能：
+   - VPS配置要求：
        - **Alpine**
-           - 内存：大于380m
+           - 内存：大于386M（等于256m需配合swap）
            - CPU：大于0.5核心
            - 硬盘：大于2G
        - **Debian和Ubuntu**
-           - 内存：大于512m
+           - 内存：大于512m（等于256m需配合swap）
            - CPU：大于1核心
-           - 硬盘：大于5G
+           - 硬盘：大于3G
 
 3. [可选] Cloudflare固定隧道模式，需要1个可以在Zero Trust创建隧道的Cloudflare账号
 
