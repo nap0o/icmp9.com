@@ -11,29 +11,36 @@
 
 ## 前提条件
 
-### 1. 拥有 **任意** 1台有公网IP的VPS，部署脚本命令只需要在这台VPS上执行。
+### [必需] 1. 拥有 **任意** 1台有公网IP的VPS，部署脚本命令只需要在这台VPS上执行。
    - VPS系统：支持Debian、Ubuntu、Alpine
    - VPS类型：支持独立VPS、NAT
    - VPS网络：支持IP双栈，支持IPv4或IPv6任意IP单栈
    - VPS配置要求：
-       - **Alpine**
-           - 内存：大于386M（等于256m需配合swap）
-           - CPU：大于0.5核心
-           - 硬盘：大于2G
-       - **Debian和Ubuntu**
-           - 内存：大于512m（等于256m需配合swap）
-           - CPU：大于1核心
-           - 硬盘：大于3G
 
-### 2. [可选] Cloudflare固定隧道模式，需要1个可以在Zero Trust创建隧道的Cloudflare账号
+|       系统       | 部署方式 |   CPU   |  内存  | 配置SWAP(虚拟内存) | 硬盘 |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+|      **Alpine**      |  Docker  | >=0.5核 | >=256M |    内存=256M时     | >=2G |
+|      **Alpine**      | VPS原生  | >=0.5核 | >=128M |         --         | >=1G |
+| **Debian / Ubuntu** |  Docker  |  >=1核  | >=512M |    内存=512M时     | >=3G |
+| **Debian / Ubuntu** | VPS原生  | >=0.5核 | >=256M |         --         | >=1G |
+
+- 低配置VPS部署案例分享
+
+| 服务商 |    系统    |                           VPS配置                            | 部署方式 |
+| :----: | :--------: | :----------------------------------------------------------: | :------: |
+| ICMP9  |  Debian12  |   KVM \| 1核心 \| 256M内存 \| 5G硬盘 \| 1G虚拟内存 \| IPv6   |  Docker  |
+| 56IDC  |  Debian11  | NAT \| LXC \| 1核心 \| 384M内存 \| 1G硬盘 \| 384虚拟内存 \| IPv4 | 原生方式 |
+| GV.UY  | Alpine3.22 |  NAT \| LXC \| 1核心 \| 128M内存 \| 1G硬盘 \| IPv4 \| IPv6   | 原生方式 |
+
+### [可选] 2. Cloudflare固定隧道模式，需要1个可以在Zero Trust创建隧道的Cloudflare账号
+
+<img height="350" alt="image" src="https://github.com/user-attachments/assets/8c9e051a-2286-4d37-bb43-919f57177193" /><br />
 
 ---
 
-## 部署步骤
+##  准备工作
 
-**🍺 快速体验，可略过以下 [可选] 部署步骤！**
-
-### [必需] 1.注册 [icmp9.com](https://icmp9.com/) 账号，获取API KEY
+### [必需] 1.注册 [icmp9.com](https://icmp9.com/user/register?invite=TO2H1GXu) 账号，获取API KEY
 
 ![获取获取API KEYl 设置](https://github.com/user-attachments/assets/e55908be-f4e3-4294-aaee-4855fca2f3ec)
 
@@ -53,20 +60,24 @@
 
 ![Cloudflare Tunnel 设置](https://github.com/user-attachments/assets/06f93523-145f-445f-98ea-22a253b85b15)
 
-### [可选] 4.设置swap虚拟内存, 适用于低配置VPS(CPU小于1核，内存小于1G，剩余硬盘空间大于5G)
+### [可选] 4.设置swap虚拟内存, 适用于低配置VPS
 
 ```bash
 bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/main/swap.sh)
 ```
 
 - ⚠️ 设置swap成功后需要重启VPS才能生效
-- 从icmp9.com官方领取的256m内存的虚机,请务必先设置1G swap虚拟内存,再部署一键脚本
+- 从icmp9.com官方领取的256m内存的虚机，Docker方式部署，请务必先设置1G swap虚拟内存,再部署一键脚本
 
 <img height="350" alt="image" src="https://github.com/user-attachments/assets/fe436d79-25b0-4276-81b3-c4c2265fa35d" /><br /> 
 
-### [必需] 5.Docker方式，请从以下3个部署方式选择
+## 部署方式（二选一）
 
-#### [推荐] 🔥🔥方式1：使用一键交互脚本部署
+请在 **Docker 方式** 或 **原生方式** 中选择一种进行部署
+
+### 🅰️ 5.Docker方式
+
+#### 方式1：使用一键交互脚本部署（推荐 🔥）
 
 ```bash
 bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install_docker.sh)  
@@ -79,6 +90,34 @@ bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.co
 **采用cloudflare固定隧道模式执行日志**
 
 <img height="600" src="https://github.com/user-attachments/assets/39492198-1853-45f3-97b9-e2a4f7f82d92" /><br />
+
+#### 方式2：Docker compose 方式
+
+```yaml
+services:
+  icmp9:
+    image: nap0o/icmp9:latest
+    container_name: icmp9
+    restart: always
+    network_mode: host
+    environment:      
+      # [必填] icmp9 提供的 API KEY
+      - ICMP9_API_KEY=
+      # [选填] Cloudflared Tunnel 域名
+      - ICMP9_CLOUDFLARED_DOMAIN=
+      # [选填] Cloudflare Tunnel Token
+      - ICMP9_CLOUDFLARED_TOKEN=
+      # [选填] VPS 是否 IPv6 Only (True/False)，默认为 False
+      - ICMP9_IPV6_ONLY=False
+      # [选填] Cloudflare CDN 优选IP或域名，不填默认使用 ICMP9_CLOUDFLARED_DOMAIN
+      - ICMP9_CDN_DOMAIN=icook.tw
+      # [选填] Xray服务监听起始端口，默认 39001
+      - ICMP9_START_PORT=39001
+      # [选填] 节点标识，默认 ICMP9
+      - ICMP9_NODE_TAG=ICMP9     
+    volumes:
+      - ./data/subscribe:/root/subscribe
+```
 
 #### 方式2：Docker run 方式
 
@@ -98,37 +137,13 @@ docker run -d \
   nap0o/icmp9:latest
 ```
 
-#### 方式3：Docker compose 方式
+### 🅱️ 6.VPS原生方式
 
-```yaml
-services:
-  icmp9:
-    image: nap0o/icmp9:latest
-    container_name: icmp9
-    restart: always
-    network_mode: host
-    environment:      
-      # [必填] icmp9 提供的 API KEY
-      - ICMP9_API_KEY=
-      # [选填] Cloudflared Tunnel 域名
-      - ICMP9_CLOUDFLARED_DOMAIN=
-      # [选填] Cloudflare Tunnel Token
-      - ICMP9_CLOUDFLARED_TOKEN=
-      # [选填] VPS 是否 IPv6 Only (True/False)，默认为 False
-      - ICMP9_IPV6_ONLY=False
-      # [选填] CDN 优选 IP 或域名，不填默认使用 ICMP9_CLOUDFLARED_DOMAIN
-      - ICMP9_CDN_DOMAIN=icook.tw
-      # [选填] 起始端口，默认 39001
-      - ICMP9_START_PORT=39001
-      # [选填] 节点标识，默认 ICMP9
-      - ICMP9_NODE_TAG=ICMP9     
-    volumes:
-      - ./data/subscribe:/root/subscribe
-```
+**⚠️  警告: 谨慎操作**
 
-### [必需] 6.VPS原生服务方式部署
-
-**⚠️ 警告：vps原有Nginx,Xray，Cloudflared服务配置文件将会被替换覆盖，导致原服务失效，请谨慎操作**
+- 将修改VPS配置的Nginx,Xray,Cloudflared原有服务，原配置会失效
+- 建议在纯净服务器上运行
+- 作者不对因使用本脚本造成的任何数据丢失负责
 
 ```bash
 bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install_native.sh)  
@@ -207,7 +222,6 @@ curl ip.sb
 
 ```bash
 date
-
 ```
 修正方法：问AI关键词 “linux同步系统时间的shell命令”
 

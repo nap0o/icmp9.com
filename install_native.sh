@@ -26,10 +26,9 @@ printf "${GREEN}=============================================${NC}\n"
 # --- 风险提示与用户确认 ---
 printf "\n${RED}                    ⚠️  警告  ⚠️                    ${NC}\n"
 printf "${RED}!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!${NC}\n"
-printf "${YELLOW}1. 本脚本将修改原系统配置的Nginx,Xray,Cloudflared服务;${NC}\n"
-printf "${YELLOW}2. VPS原有的Nginx,Xray，Cloudflared服务将会被覆盖导致失效;${NC}\n"
-printf "${YELLOW}3. 因此建议在纯净系统或专用服务器上运行;${NC}\n"
-printf "${YELLOW}4. 作者不对因使用本脚本造成的任何数据丢失负责。${NC}\n"
+printf "${YELLOW}1. 本脚本将修改VPS配置的Nginx,Xray,Cloudflared原有服务，原配置会失效;${NC}\n"
+printf "${YELLOW}2. 建议在纯净系统或专用服务器上运行;${NC}\n"
+printf "${YELLOW}3. 作者不对因使用本脚本造成的任何数据丢失负责。${NC}\n"
 printf "${RED}!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!${NC}\n"
 
 printf "\n您是否已知晓上述风险并确认继续安装？ [y/N]: "
@@ -54,7 +53,6 @@ if [ -f /etc/alpine-release ]; then
     info "📦 检测到 Alpine Linux，正在安装依赖..."
     ulimit -n 65535
     apk update
-    #apk add --no-cache bash wget curl unzip nano python3 py3-pip py3-requests py3-yaml py3-pysocks nginx coreutils libcap
     apk add --no-cache bash wget curl unzip nano nginx
 
 elif [ -f /etc/os-release ]; then
@@ -65,13 +63,27 @@ elif [ -f /etc/os-release ]; then
         info "📦 检测到 Debian/Ubuntu，正在安装依赖..."
         ulimit -n 65535
         apt-get update
-        #apt-get install -y wget curl unzip nano python3 python3-pip python3-requests python3-yaml python3-socks nginx
         apt-get install -y wget curl unzip nano nginx
     fi
 fi
 
 if [ "$OS_TYPE" = "unknown" ]; then
     error "❌ 不支持的操作系统！仅支持 Debian, Ubuntu 或 Alpine。"
+    exit 1
+fi
+
+# ICMP9 可用落地节点 API 连通性检查
+info "📡 正在检查 ICMP9 可用落地节点 API 连接状态..."
+
+API_URL="https://api.icmp9.com/online.php"
+
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$API_URL")
+
+if [ "$HTTP_CODE" = "200" ]; then
+    info "✅ 可用落地节点 API 连接正常，准备开始部署..."
+else
+    error "❌ 可用落地节点 API 连接检查未通过！"
+    error "⛔️ 脚本已停止运行。"
     exit 1
 fi
 
@@ -89,43 +101,6 @@ case "${ARCH_RAW}" in
   x86_64 | amd64) ARCH="64"; CF_ARCH="amd64" ;;
   *) error "❌ 不支持的 CPU 架构: ${ARCH_RAW}"; exit 1 ;;
 esac
-
-install_xray() {
-    local version="${1:-v24.11.30}"
-    local install_path="$WORK_DIR/xray"
-    local download_url="https://ghproxy.lvedong.eu.org/https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-${ARCH}.zip"
-    
-    if [ -f "$install_path/xray" ]; then echo "ℹ️ Xray 已安装"; return; fi
-    echo "⬇️ 下载 Xray..."
-    wget -q -O "Xray.zip" "$download_url" || { echo "❌ Xray 下载失败"; exit 1; }
-    unzip -qo "Xray.zip" -d "$install_path"
-    chmod +x "$install_path/xray"
-    rm -f "Xray.zip"
-}
-
-install_cloudflared() {
-    local version="${1:-2025.11.1}"
-    local install_path="/usr/bin/cloudflared"    
-    local url="https://ghproxy.lvedong.eu.org/https://github.com/cloudflare/cloudflared/releases/download/${version}/cloudflared-linux-${CF_ARCH}"
-
-    if [ -f "$install_path" ]; then echo "ℹ️ Cloudflared 已安装"; return; fi
-    echo "⬇️ 下载 Cloudflared..."
-    wget -q -O "$install_path" "$url" || { echo "❌ Cloudflared 下载失败"; exit 1; }
-    chmod +x "$install_path"
-}
-
-ICMP9="/usr/bin/icmp9"
-install_icmp9() {
-    local url="https://ghproxy.lvedong.eu.org/https://github.com/nap0o/icmp9.com/releases/download/icmp9/icmp9-native-${OS_TYPE}-${CF_ARCH}"
-
-    echo "⬇️ 正在下载/更新 icmp9..."
-    wget -q -O "$ICMP9" "$url" || { echo "❌ icmp9 下载失败"; exit 1; }
-    chmod +x "$ICMP9"
-}
-
-install_xray
-install_cloudflared
-install_icmp9
 
 # --- 3. 用户配置输入 ---
 printf "\n${YELLOW}>>> 请输入配置参数 <<<${NC}\n"
@@ -183,8 +158,7 @@ printf "6. 请输入节点标识 [默认: ICMP9]: "
 read -r NODE_TAG_INPUT
 if [ -z "$NODE_TAG_INPUT" ]; then NODE_TAG="ICMP9"; else NODE_TAG=$NODE_TAG_INPUT; fi
 
-# --- 5. 执行配置生成 ---
-info "⚙️ 正在执行配置生成..."
+# --- 环境变量导出 ---
 export ICMP9_OS_TYPE="$OS_TYPE"
 export ICMP9_API_KEY="$API_KEY"
 export ICMP9_CLOUDFLARED_TOKEN="$TOKEN"
@@ -195,6 +169,43 @@ export ICMP9_START_PORT="$START_PORT"
 export ICMP9_NODE_TAG="$NODE_TAG"
 export ICMP9_TUNNEL_MODE="$TUNNEL_MODE"
 
+install_xray() {
+    local version="${1:-v24.11.30}"
+    local install_path="$WORK_DIR/xray"
+    local download_url="https://ghproxy.lvedong.eu.org/https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-${ARCH}.zip"
+    
+    if [ -f "$install_path/xray" ]; then echo "ℹ️ Xray 已安装"; return; fi
+    echo "⬇️ 下载 Xray..."
+    wget -q -O "Xray.zip" "$download_url" || { echo "❌ Xray 下载失败"; exit 1; }
+    unzip -qo "Xray.zip" -d "$install_path"
+    chmod +x "$install_path/xray"
+    rm -f "Xray.zip"
+}
+
+install_cloudflared() {
+    local version="${1:-2025.11.1}"
+    local install_path="/usr/bin/cloudflared"    
+    local url="https://ghproxy.lvedong.eu.org/https://github.com/cloudflare/cloudflared/releases/download/${version}/cloudflared-linux-${CF_ARCH}"
+
+    if [ -f "$install_path" ]; then echo "ℹ️ Cloudflared 已安装"; return; fi
+    echo "⬇️ 下载 Cloudflared..."
+    wget -q -O "$install_path" "$url" || { echo "❌ Cloudflared 下载失败"; exit 1; }
+    chmod +x "$install_path"
+}
+
+ICMP9="/usr/bin/icmp9"
+install_icmp9() {
+    local url="https://ghproxy.lvedong.eu.org/https://github.com/nap0o/icmp9.com/releases/download/icmp9/icmp9-native-${OS_TYPE}-${CF_ARCH}"
+
+    echo "⬇️ 正在下载/更新 icmp9..."
+    wget -q -O "$ICMP9" "$url" || { echo "❌ icmp9 下载失败"; exit 1; }
+    chmod +x "$ICMP9"
+}
+
+install_xray
+install_cloudflared
+install_icmp9
+
 echo "⚙️ 调用 icmp9 生成配置文件 ..."
 if [ -f "$ICMP9" ]; then
     "$ICMP9"
@@ -202,7 +213,6 @@ else
     echo "❌ 找不到 icmp9 二进制文件"
     exit 1
 fi
-
 
 # --- 6. 部署服务文件与启动 ---
 info "🚀 正在部署并启动服务..."

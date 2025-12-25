@@ -23,6 +23,31 @@ if [ "$(id -u)" != "0" ]; then
     exit 1
 fi
 
+# ICMP9 可用落地节点 API 连通性检查
+info "📡 正在检查 ICMP9 可用落地节点 API 连接状态..."
+
+# 确保 curl 已安装
+if ! command -v curl >/dev/null 2>&1; then
+    warn "⚠️ 检测到未安装 curl，正在安装..."
+    if [ -f /etc/alpine-release ]; then
+        apk add --no-cache curl
+    else
+        apt-get update >/dev/null 2>&1 && apt-get install -y curl >/dev/null 2>&1
+    fi
+fi
+
+API_URL="https://api.icmp9.com/online.php"
+
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$API_URL")
+
+if [ "$HTTP_CODE" = "200" ]; then
+    info "✅ 可用落地节点 API 连接正常，准备开始部署..."
+else
+    error "❌ 可用落地节点 API 连接检查未通过！"
+    error "⛔️ 脚本已停止运行。"
+    exit 1
+fi
+
 # 1. 环境检测与 Docker 安装
 # 刷新命令缓存
 hash -r >/dev/null 2>&1
@@ -92,17 +117,12 @@ if ! docker compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev
     info "✅ Docker Compose 安装成功"
 fi
 
-# 2. 创建工作目录
-WORK_DIR="icmp9"
-[ ! -d "$WORK_DIR" ] && mkdir -p "$WORK_DIR"
-cd "$WORK_DIR" || exit
-
-# 3. 收集用户输入
+# 2. 收集用户输入
 printf "\n${YELLOW}>>> 请输入配置参数 <<<${NC}\n"
 
 # API_KEY (UUID) - 必填
 while [ -z "$API_KEY" ]; do
-    printf "1. 请输入 ICMP9_API_KEY (用户UUID, 必填): "
+    printf "1. 请输入 ICMP9_API_KEY (UUID格式, 必填): "
     read -r API_KEY
 done
 
@@ -145,7 +165,7 @@ read -r CDN_INPUT
 [ -z "$CDN_INPUT" ] && CDN_DOMAIN="icook.tw" || CDN_DOMAIN=$CDN_INPUT
 
 # 端口设置
-printf "5. 请输入本地监听起始端口 [默认: 39001]: "
+printf "5. 请输入Xray服务监听起始端口 [默认: 39001]: "
 read -r PORT_INPUT
 [ -z "$PORT_INPUT" ] && START_PORT="39001" || START_PORT=$PORT_INPUT
 
@@ -154,10 +174,15 @@ printf "6. 请输入节点标识 [默认: ICMP9]: "
 read -r NODE_TAG_INPUT
 [ -z "$NODE_TAG_INPUT" ] && NODE_TAG="ICMP9" || NODE_TAG=$NODE_TAG_INPUT
 
+# 3. 创建工作目录
+WORK_DIR=${ICMP9_WORK_DIR:-/root}
+[ ! -d "$WORK_DIR/icmp9" ] && mkdir -p "$WORK_DIR/icmp9"
+cd "$WORK_DIR/icmp9" || exit
+
 # 4. 生成 docker-compose.yml
 info "⏳ 正在生成 docker-compose.yml..."
 
-cat > docker-compose.yml <<EOF
+cat > ${WORK_DIR}/icmp9/docker-compose.yml <<EOF
 services:
   icmp9:
     image: nap0o/icmp9:latest
@@ -173,7 +198,7 @@ services:
       - ICMP9_START_PORT=${START_PORT}
       - ICMP9_NODE_TAG=${NODE_TAG}
     volumes:
-      - ./data/subscribe:/root/subscribe
+      - ./data/subscribe:${WORK_DIR}/subscribe
 EOF
 
 # 5. 确定 Docker Compose 命令
