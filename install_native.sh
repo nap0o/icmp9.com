@@ -224,7 +224,7 @@ if [ "$TUNNEL_MODE" = "temp" ]; then
     fi
     
     # 启动 Cloudflared (使用 58080 端口，后续 Nginx 会监听这个端口)
-    nohup /usr/bin/cloudflared tunnel --edge-ip-version ${EDGE_IP_OPT} --url http://localhost:${CLOUDFLARED_PORT} --no-autoupdate > /tmp/cloudflared.log 2>&1 &
+    nohup /usr/bin/cloudflared tunnel --url http://localhost:${CLOUDFLARED_PORT} --no-autoupdate --edge-ip-version ${EDGE_IP_OPT}> /tmp/cloudflared.log 2>&1 &
     CF_PID=$!
 
     info "⏳ 正在等待 Cloudflare 分配域名 (超时 60s)..."
