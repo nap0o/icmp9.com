@@ -58,7 +58,7 @@
 
 <img height="350" alt="image" src="https://github.com/user-attachments/assets/8c9e051a-2286-4d37-bb43-919f57177193" /><br />
 
-##  准备工作
+## 准备工作
 
 ### [必需] 1.注册 [icmp9.com](https://icmp9.com/user/register?invite=TO2H1GXu) 账号，获取API KEY
 
@@ -83,7 +83,7 @@
 ### [可选] 4.设置swap虚拟内存, 适用于低配置VPS
 
 ```bash
-bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/main/swap.sh)
+bash <(wget -qO- https://o0o.net2ftp.pp.ua/https://raw.githubusercontent.com/nap0o/icmp9.com/main/swap.sh)
 ```
 
 - ⚠️ 设置swap成功后需要重启VPS才能生效
@@ -100,7 +100,7 @@ bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.co
 #### 方式1：使用一键交互脚本部署（推荐 🔥）
 
 ```bash
-bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install_docker.sh)  
+bash <(wget -qO- https://o0o.net2ftp.pp.ua/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install_docker.sh)  
 ```
 
 **采用cloudflare临时隧道模式执行日志**
@@ -166,7 +166,7 @@ docker run -d \
 - 作者不对因使用本脚本造成的任何数据丢失负责
 
 ```bash
-bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install_native.sh)  
+bash <(wget -qO- https://o0o.net2ftp.pp.ua/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install_native.sh)  
 ```
 
 ### [可选] 7.获取节点订阅地址
@@ -249,13 +249,15 @@ date
 ### [可选] 9.一键卸载
 
 ```bash
-bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/main/uninstall.sh)  
+bash <(wget -qO- https://o0o.net2ftp.pp.ua/https://raw.githubusercontent.com/nap0o/icmp9.com/main/uninstall.sh)  
 ```
 
 ## 感谢
 
 - https://github.com/fscarmen/ArgoX
 - https://github.com/fscarmen/client_template
+- https://github.com/fscarmen2/Cloudflare-Accel
+- https://github.com/crazypeace/ghproxy
 
 ## 免责
 

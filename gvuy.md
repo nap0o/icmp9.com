@@ -55,5 +55,5 @@ pkill udhcpc
 **注意：一键脚本中的 VPS IPv6 Only 系统参数务必设置为 True**
 
 ```bash
-bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install_native.sh)  
+bash <(wget -qO- https://o0o.net2ftp.pp.ua/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install_native.sh)  
 ```

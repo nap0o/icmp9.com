@@ -255,7 +255,7 @@ fi
 install_xray() {
     local version="v24.11.30"
     local install_path="$WORK_DIR/xray"
-    local download_url="https://ghproxy.lvedong.eu.org/https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-${ARCH}.zip"
+    local download_url="https://o0o.net2ftp.pp.ua/https://github.com/XTLS/Xray-core/releases/download/${version}/Xray-linux-${ARCH}.zip"
     
     if [ -f "$install_path/xray" ]; then echo "ℹ️ Xray 已安装"; return; fi
     echo "⬇️ 下载 Xray..."
@@ -268,7 +268,7 @@ install_xray() {
 install_cloudflared() {
     local version="2025.11.1"
     local install_path="/usr/bin/cloudflared"    
-    local url="https://ghproxy.lvedong.eu.org/https://github.com/cloudflare/cloudflared/releases/download/${version}/cloudflared-linux-${CF_ARCH}"
+    local url="https://o0o.net2ftp.pp.ua/https://github.com/cloudflare/cloudflared/releases/download/${version}/cloudflared-linux-${CF_ARCH}"
 
     if [ -f "$install_path" ]; then echo "ℹ️ Cloudflared 已安装"; return; fi
     echo "⬇️ 下载 Cloudflared..."
@@ -278,7 +278,7 @@ install_cloudflared() {
 
 ICMP9="/usr/bin/icmp9"
 install_icmp9() {
-    local url="https://ghproxy.lvedong.eu.org/https://github.com/nap0o/icmp9.com/releases/download/latest/icmp9-native-${OS_TYPE}-${CF_ARCH}"
+    local url="https://o0o.net2ftp.pp.ua/https://github.com/nap0o/icmp9.com/releases/download/latest/icmp9-native-${OS_TYPE}-${CF_ARCH}"
 
     echo "⬇️ 正在下载/更新 icmp9..."
     wget -q -O "$ICMP9" "$url" || { echo "❌ icmp9 下载失败"; exit 1; }
