@@ -23,7 +23,7 @@
 
 <img height="350" alt="image" src="https://github.com/user-attachments/assets/8c9e051a-2286-4d37-bb43-919f57177193" /><br />
 
-##  准备工作
+## 准备工作
 
 ### [必需] 1.注册 [icmp9.com](https://icmp9.com/user/register?invite=TO2H1GXu) 账号，获取API KEY
 
@@ -48,7 +48,7 @@
 ### [可选] 4.设置swap虚拟内存, 适用于低配置VPS
 
 ```bash
-bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/nginx/swap.sh)
+bash <(wget -qO- https://o0o.net2ftp.pp.ua/https://raw.githubusercontent.com/nap0o/icmp9.com/nginx/swap.sh)
 ```
 
 - ⚠️ 设置swap成功后需要重启VPS才能生效
@@ -65,7 +65,7 @@ bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.co
 #### 方式1：使用一键交互脚本部署（推荐 🔥）
 
 ```bash
-bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/nginx/install_docker.sh)  
+bash <(wget -qO- https://o0o.net2ftp.pp.ua/https://raw.githubusercontent.com/nap0o/icmp9.com/nginx/install_docker.sh)  
 ```
 
 #### 方式2：Docker compose 方式
@@ -88,8 +88,6 @@ services:
       - ICMP9_IPV6_ONLY=False
       # [选填] Cloudflare CDN 优选IP或域名，不填默认使用 ICMP9_CLOUDFLARED_DOMAIN
       - ICMP9_CDN_DOMAIN=icook.tw
-      # [选填] Xray服务监听起始端口，默认 39001
-      - ICMP9_START_PORT=39001
       # [选填] 节点标识，默认 ICMP9
       - ICMP9_NODE_TAG=ICMP9     
     volumes:
@@ -108,7 +106,6 @@ docker run -d \
   -e ICMP9_CLOUDFLARED_TOKEN="[选填] Cloudflare Tunnel Token" \
   -e ICMP9_IPV6_ONLY=False \
   -e ICMP9_CDN_DOMAIN=icook.tw \
-  -e ICMP9_START_PORT=39001 \
   -e ICMP9_NODE_TAG=ICMP9 \
   -v "$(pwd)/data/subscribe:/root/subscribe" \
   nap0o/icmp9:nginx
@@ -118,24 +115,26 @@ docker run -d \
 
 **⚠️  警告: 谨慎操作**
 
-- 将修改VPS配置的Nginx,Xray,Cloudflared原有服务，原配置会失效
+- 将修改VPS配置的Nginx,Cloudflared原有服务，原配置会失效
 - 建议在纯净服务器上运行
 - 作者不对因使用本脚本造成的任何数据丢失负责
 
 ```bash
-bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/nginx/install_native.sh)  
+bash <(wget -qO- https://o0o.net2ftp.pp.ua/https://raw.githubusercontent.com/nap0o/icmp9.com/nginx/install_native.sh)  
 ```
 
 ### [可选] 7.一键卸载
 
 ```bash
-bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/nginx/uninstall.sh)  
+bash <(wget -qO- https://o0o.net2ftp.pp.ua/https://raw.githubusercontent.com/nap0o/icmp9.com/nginx/uninstall.sh)  
 ```
 
 ## 感谢
 
 - https://github.com/fscarmen/ArgoX
 - https://github.com/fscarmen/client_template
+- https://github.com/fscarmen2/Cloudflare-Accel
+- https://github.com/crazypeace/ghproxy
 
 ## 免责
 
