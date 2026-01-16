@@ -80,6 +80,8 @@ services:
     environment:      
       # [必填] icmp9 提供的 API KEY
       - ICMP9_API_KEY=
+      # [必填] icmp9 提供的网络接入点
+      - ICMP9_TUNNEL_ENDPOINT=tunnel-as.8443.buzz
       # [选填] Cloudflared Tunnel 域名
       - ICMP9_CLOUDFLARED_DOMAIN=
       # [选填] Cloudflare Tunnel Token
@@ -102,6 +104,7 @@ docker run -d \
   --restart always \
   --network host \
   -e ICMP9_API_KEY="[必填] icmp9 提供的 API KEY" \
+  -e ICMP9_TUNNEL_ENDPOINT="[必填] icmp9 提供的网络接入点,格式如 tunnel-as.8443.buzz" \
   -e ICMP9_CLOUDFLARED_DOMAIN="[选填] Cloudflared Tunnel 域名" \
   -e ICMP9_CLOUDFLARED_TOKEN="[选填] Cloudflare Tunnel Token" \
   -e ICMP9_IPV6_ONLY=False \
