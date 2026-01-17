@@ -1,35 +1,5 @@
 # 简单部署流程
 
-- [简单部署流程](#简单部署流程)
-  - [特色](#特色)
-  - [效果图](#效果图)
-  - [前提条件](#前提条件)
-    - [\[必需\] 1. 拥有 **任意** 1台有公网IP的VPS，部署脚本命令只需要在这台VPS上执行。](#必需-1-拥有-任意-1台有公网ip的vps部署脚本命令只需要在这台vps上执行)
-    - [\[可选\] 2. Cloudflare固定隧道模式，需要1个可以在Zero Trust创建隧道的Cloudflare账号](#可选-2-cloudflare固定隧道模式需要1个可以在zero-trust创建隧道的cloudflare账号)
-  - [准备工作](#准备工作)
-    - [\[必需\] 1.注册 icmp9.com 账号，获取API KEY](#必需-1注册-icmp9com-账号获取api-key)
-    - [\[必需\] 2.放行VPS的IP地址：单栈VPS仅需放行对应的单个IP地址；双栈VPS需同时放行IPv4和IPv6两个IP地址](#必需-2放行vps的ip地址单栈vps仅需放行对应的单个ip地址双栈vps需同时放行ipv4和ipv6两个ip地址)
-    - [\[可选\] 3.使用cloudflare固定隧道模式](#可选-3使用cloudflare固定隧道模式)
-    - [\[可选\] 4.设置swap虚拟内存, 适用于低配置VPS](#可选-4设置swap虚拟内存-适用于低配置vps)
-  - [部署方式（二选一）](#部署方式二选一)
-    - [🅰️ 5.Docker方式](#️-5docker方式)
-      - [方式1：使用一键交互脚本部署（推荐 🔥）](#方式1使用一键交互脚本部署推荐-)
-      - [方式2：Docker compose 方式](#方式2docker-compose-方式)
-      - [方式3：Docker run 方式](#方式3docker-run-方式)
-    - [🅱️ 6.VPS原生方式](#️-6vps原生方式)
-    - [\[可选\] 7.获取节点订阅地址](#可选-7获取节点订阅地址)
-    - [\[可选\] 8.节点不通时自助排查方法](#可选-8节点不通时自助排查方法)
-      - [1.确认icmp9.com放行的IP地址已生效](#1确认icmp9com放行的ip地址已生效)
-      - [2.固定隧道模式下，确认cloudflared tunnel是正常状态](#2固定隧道模式下确认cloudflared-tunnel是正常状态)
-      - [3.已安装warp服务VPS核对默认优先出站IP地址与icmp9.com填写的放行IP地址一致](#3已安装warp服务vps核对默认优先出站ip地址与icmp9com填写的放行ip地址一致)
-      - [4.确认优选域名在本地可以正常连通访问](#4确认优选域名在本地可以正常连通访问)
-      - [5.核对VPS系统时间和本地环境时间一致](#5核对vps系统时间和本地环境时间一致)
-    - [\[可选\] 9.一键卸载](#可选-9一键卸载)
-  - [感谢](#感谢)
-  - [免责](#免责)
-  
----
-
 ## 特色
 
 利用 [icmp9.com](https://icmp9.com/proxy) 提供的免费代理网络，借助1台VPS实现落地全球多个国家的网络节点。
@@ -100,7 +70,7 @@ bash <(wget -qO- https://o0o.net2ftp.pp.ua/https://raw.githubusercontent.com/nap
 #### 方式1：使用一键交互脚本部署（推荐 🔥）
 
 ```bash
-bash <(wget -qO- https://o0o.net2ftp.pp.ua/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install_docker.sh)  
+bash <(wget -qO- https://o0o.net2ftp.pp.ua/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install_docker.sh)
 ```
 
 **采用cloudflare临时隧道模式执行日志**
@@ -169,7 +139,7 @@ docker run -d \
 - 作者不对因使用本脚本造成的任何数据丢失负责
 
 ```bash
-bash <(wget -qO- https://o0o.net2ftp.pp.ua/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install_native.sh)  
+bash <(wget -qO- https://o0o.net2ftp.pp.ua/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install_native.sh)
 ```
 
 ### [可选] 7.获取节点订阅地址
@@ -203,7 +173,7 @@ https://{ICMP9_CLOUDFLARED_DOMAIN}/{ICMP9_API_KEY}
 在部署脚本的VPS执行以下命令
 
 ```bash
-curl -v https://tunnel-as.8443.buzz/af
+curl -v https://tunnel-as.8443.buzz/hk
 ```
 
 生效状态，返回 **400**
@@ -252,7 +222,7 @@ date
 ### [可选] 9.一键卸载
 
 ```bash
-bash <(wget -qO- https://o0o.net2ftp.pp.ua/https://raw.githubusercontent.com/nap0o/icmp9.com/main/uninstall.sh)  
+bash <(wget -qO- https://o0o.net2ftp.pp.ua/https://raw.githubusercontent.com/nap0o/icmp9.com/main/uninstall.sh)
 ```
 
 ## 感谢
