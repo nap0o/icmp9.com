@@ -14,7 +14,7 @@ error() { printf "${RED}%s${NC}\n" "$1"; }
 
 # 注册清理函数：脚本退出或中断时自动清理临时文件
 cleanup() {
-    rm -f /tmp/icmp9_ap_list.txt
+    rm -f /tmp/icmp9_ap_list.txt /tmp/icmp9_regions.json /tmp/icmp9_endpoints.txt
 }
 trap cleanup EXIT
 
@@ -55,7 +55,7 @@ fi
 
 # 1.1 检查 ICMP9 网络接入点 API
 info "📡 正在检查 ICMP9 可用网络接入点 API 连接状态..."
-AP_URL="https://icmp9.b.4.8.f.0.7.4.0.1.0.0.2.ip6.arpa/access-points.php"
+AP_URL="https://icmp9.b.4.8.f.0.7.4.0.1.0.0.2.ip6.arpa/endpoints.php"
 AP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 -A "Mozilla/5.0" "$AP_URL")
 
 if [ "$AP_CODE" = "200" ]; then
@@ -82,7 +82,7 @@ fi
 # ----------------------------------------------------------------
 # 2. 环境检测与 Docker 安装
 # ----------------------------------------------------------------
-
+# 1. 环境检测与 Docker 安装
 # 刷新命令缓存
 hash -r >/dev/null 2>&1
 
@@ -97,6 +97,9 @@ if ! command -v docker >/dev/null 2>&1; then
         rc-service docker start
     else
         # Debian / Ubuntu
+        if ! command -v curl >/dev/null 2>&1; then
+            apt-get update && apt-get install -y curl
+        fi
         curl -fsSL https://get.docker.com | sh
         systemctl enable --now docker
     fi
@@ -130,12 +133,17 @@ fi
 # 检查 Docker Compose
 if ! docker compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
     warn "⚠️ 未检测到 Docker Compose，正在安装..."
+    
     if [ -f /etc/alpine-release ]; then
         apk add docker-cli-compose
     else
-        apt-get update && apt-get install -y docker-compose-plugin || warn "尝试依赖插件失败..."
+        # 尝试安装插件版
+        apt-get update && apt-get install -y docker-compose-plugin || \
+        # 如果 apt 失败，尝试作为 python 包或二进制
+        warn "尝试通过包管理器安装插件失败，尝试依赖 Docker CLI 插件..."
     fi
     
+    # 再次检查
     if ! docker compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
         error "❌ Docker Compose 安装失败！"
         exit 1
@@ -154,11 +162,11 @@ while [ -z "$API_KEY" ]; do
     read -r API_KEY
 done
 
-# --- ICMP9 网络接入点选择 ---
-printf "\n2. 请选择 ICMP9 网络接入点 (Access Point):\n"
+# ICMP9 网络接入点选择
+printf "\n2. 请选择 ICMP9 网络接入点:\n"
 info "📥 正在获取ICMP9最新网络接入点列表..."
 
-# 再次获取数据 (已在前置检测中确认可连通)
+# 获取数据
 AP_JSON=$(curl -s --max-time 15 "$AP_URL")
 
 if [ -z "$AP_JSON" ]; then
@@ -167,55 +175,96 @@ if [ -z "$AP_JSON" ]; then
     exit 1
 fi
 
-# 解析并筛选 is_active=1 的节点
-ACTIVE_LIST=$(echo "$AP_JSON" | jq -r '.data.list[] | select(.is_active==1) | "\(.name)|\(.domain)"')
+# 预处理
+echo "$AP_JSON" | jq -c '.data.regions[]' > /tmp/icmp9_regions.json
 
-if [ -z "$ACTIVE_LIST" ]; then
-    error "❌ 未找到任何可用的ICMP9 网络接入点 (is_active=1)！"
+if [ ! -s /tmp/icmp9_regions.json ]; then
+    error "❌ 未找到任何区域数据！请检查 API 返回结构。"
     error "⛔️ 脚本已停止运行。"
     exit 1
 fi
 
-# 缓存到临时文件
-echo "$ACTIVE_LIST" > /tmp/icmp9_ap_list.txt
+# 清理并初始化
+rm -f /tmp/icmp9_endpoints.txt
+touch /tmp/icmp9_endpoints.txt
 
-# 显示列表
-i=1
-while IFS='|' read -r NAME DOMAIN; do
-    printf "   [%d] %s\n" "$i" "$NAME"
-    i=$((i+1))
-done < /tmp/icmp9_ap_list.txt
+# 遍历每个区域对象
+while read -r REGION_JSON; do
+    # 提取区域元数据
+    REGION_CODE=$(echo "$REGION_JSON" | jq -r '.code' | tr '[:lower:]' '[:upper:]')
+    REGION_NAME=$(echo "$REGION_JSON" | jq -r '.name')
+    
+    # 提取该区域下的 endpoints
+    NODES=$(echo "$REGION_JSON" | jq -r '.endpoints[] | "\(.name)|\(.domain)"')
+    
+    if [ -z "$NODES" ]; then continue; fi
 
-# 用户选择
-TOTAL_COUNT=$((i-1))
-printf "   请选择 [1-%d] (默认: 1): " "$TOTAL_COUNT"
-read -r AP_SELECT
-[ -z "$AP_SELECT" ] && AP_SELECT=1
+    printf "\n   ${CYAN}>>> 处理区域: %s ...${NC}\n" "$REGION_NAME"
 
-# 校验输入是否为有效数字
-case "$AP_SELECT" in
-    ''|*[!0-9]*) 
-        warn "⚠️ 输入无效，自动尝试使用默认值 1"
-        AP_SELECT=1 
-        ;;
-esac
+    # 统计节点数量
+    NODE_COUNT=$(echo "$NODES" | wc -l)
+    
+    SELECTED_DOMAIN=""
+    SELECTED_NAME=""
 
-# 提取选择的域名
-j=1
-TUNNEL_ENDPOINT=""
-while IFS='|' read -r NAME DOMAIN; do
-    if [ "$j" -eq "$AP_SELECT" ]; then
-        TUNNEL_ENDPOINT="$DOMAIN"
-        info "-> 已选择接入点: $NAME ($TUNNEL_ENDPOINT)"
-        break
+    # === 智能分支 ===
+    if [ "$NODE_COUNT" -eq 1 ]; then
+        # 自动选择
+        SELECTED_NAME=$(echo "$NODES" | cut -d '|' -f 1)
+        SELECTED_DOMAIN=$(echo "$NODES" | cut -d '|' -f 2)
+        printf "   ✅ 仅发现一个活跃节点，已自动选择: %s\n" "$SELECTED_NAME"
+    else
+        # 手动选择
+        printf "   ⚠️  存在 %s 个活跃节点，请手动指定:\n" "$NODE_COUNT"
+        
+        echo "$NODES" > /tmp/icmp9_ap_list.txt
+        
+        i=1
+        while IFS='|' read -r NAME DOMAIN; do
+            printf "      [%d] %s\n" "$i" "$NAME"
+            i=$((i+1))
+        done < /tmp/icmp9_ap_list.txt
+        
+        TOTAL_COUNT=$((i-1))
+        
+        while [ -z "$SELECTED_DOMAIN" ]; do
+            printf "      请选择 [1-%d]: " "$TOTAL_COUNT"
+            # 强制从终端读取
+            read -r SEL < /dev/tty
+            
+            case "$SEL" in
+                ''|*[!0-9]*) 
+                    warn "输入无效，请重新输入" 
+                    ;;
+                *)
+                    if [ "$SEL" -ge 1 ] && [ "$SEL" -le "$TOTAL_COUNT" ]; then
+                        LINE=$(sed -n "${SEL}p" /tmp/icmp9_ap_list.txt)
+                        SELECTED_NAME=$(echo "$LINE" | cut -d '|' -f 1)
+                        SELECTED_DOMAIN=$(echo "$LINE" | cut -d '|' -f 2)
+                        printf "      -> 已手动设置: %s\n" "$SELECTED_NAME"
+                    else
+                        warn "选项超出范围"
+                    fi
+                    ;;
+            esac
+        done
+        rm -f /tmp/icmp9_ap_list.txt
     fi
-    j=$((j+1))
-done < /tmp/icmp9_ap_list.txt
 
-# 最终校验 (如果不符合要求直接退出)
-if [ -z "$TUNNEL_ENDPOINT" ]; then
-    error "❌ 接入点选择无效或解析失败！"
-    error "⛔️ 脚本已停止运行。"
+    # 变量记录
+    ENV_VAR_NAME="ICMP9_TUNNEL_ENDPOINT_${REGION_CODE}"
+    ENV_VAR_NAME=$(echo "$ENV_VAR_NAME" | tr ' ' '_')
+    
+    echo "      - ${ENV_VAR_NAME}=${SELECTED_DOMAIN}" >> /tmp/icmp9_endpoints.txt
+
+done < /tmp/icmp9_regions.json
+
+# 读取环境变量片段
+if [ -f /tmp/icmp9_endpoints.txt ]; then
+    DOCKER_ENV_EXTRA=$(cat /tmp/icmp9_endpoints.txt)
+    info "✅ 网络接入点所有地区配置完成。"
+else
+    error "❌ 未能生成任何网络接入点配置！"
     exit 1
 fi
 # ------------------------------------
@@ -235,6 +284,7 @@ if [ "$MODE_INPUT" = "2" ]; then
         printf "   -> 请输入绑定域名 (CLOUDFLARED_DOMAIN) (必填): "
         read -r CLOUDFLARED_DOMAIN
     done
+
     while [ -z "$TOKEN" ]; do
         printf "   -> 请输入 Cloudflare Tunnel Token (必填): "
         read -r TOKEN
@@ -247,7 +297,7 @@ else
     info "   -> 已选择临时隧道，域名将在启动后自动生成。"
 fi
 
-# IPv6 设置
+# IPv6 设置 (忽略大小写)
 printf "\n4. VPS是否IPv6 Only (True/False) [默认: False]: "
 read -r IPV6_INPUT
 IPV6_ONLY=$(echo "${IPV6_INPUT:-false}" | tr '[:upper:]' '[:lower:]')
@@ -269,6 +319,7 @@ WORK_DIR=${ICMP9_WORK_DIR:-/root}
 [ ! -d "$WORK_DIR/icmp9" ] && mkdir -p "$WORK_DIR/icmp9"
 cd "$WORK_DIR/icmp9" || exit
 
+# 4. 生成 docker-compose.yml
 info "⏳ 正在生成 docker-compose.yml..."
 
 cat > ${WORK_DIR}/icmp9/docker-compose.yml <<EOF
@@ -280,17 +331,18 @@ services:
     network_mode: host
     environment:
       - ICMP9_API_KEY=${API_KEY}
-      - ICMP9_TUNNEL_ENDPOINT=${TUNNEL_ENDPOINT}
       - ICMP9_CLOUDFLARED_DOMAIN=${CLOUDFLARED_DOMAIN}
       - ICMP9_CLOUDFLARED_TOKEN=${TOKEN}
       - ICMP9_IPV6_ONLY=${IPV6_ONLY}
       - ICMP9_CDN_DOMAIN=${CDN_DOMAIN}
       - ICMP9_NODE_TAG=${NODE_TAG}
+$(echo "$DOCKER_ENV_EXTRA")
     volumes:
       - ./data/subscribe:${WORK_DIR}/subscribe
 EOF
 
-# 5. 再次动态检测，防止安装后变量未更新
+# 5. 确定 Docker Compose 命令
+# 再次动态检测，防止安装后变量未更新
 DOCKER_COMPOSE_CMD=""
 if docker compose version >/dev/null 2>&1; then
     DOCKER_COMPOSE_CMD="docker compose"
@@ -307,10 +359,12 @@ read -r START_NOW
 [ -z "$START_NOW" ] && START_NOW="y"
 
 if [ "$START_NOW" = "y" ] || [ "$START_NOW" = "Y" ]; then
+    
     # --- 1: 清理旧容器 ---
     # 检查是否有名为 icmp9 的容器（运行中或停止状态）
     if [ -n "$(docker ps -aq -f name="^/icmp9$")" ]; then
         warn "⚠️ 检测到已存在 icmp9 容器，正在停止并删除..."
+        
         # 尝试删除，并捕获返回值
         if docker rm -f icmp9 >/dev/null 2>&1; then
             info "✅ 旧容器已清理"
@@ -334,17 +388,21 @@ if [ "$START_NOW" = "y" ] || [ "$START_NOW" = "Y" ]; then
         exit 1
     fi
     
+    # 成功判断
     printf "\n${GREEN}✅ ICMP9 部署成功！${NC}\n"
     
     if [ "$TUNNEL_MODE" = "fixed" ]; then
         # --- 固定隧道 ---
         SUBSCRIBE_URL="https://${CLOUDFLARED_DOMAIN}/${API_KEY}"
+
         printf "\n${GREEN}✈️ 节点订阅地址:${NC}\n"
         printf "${YELLOW}%s${NC}\n\n" "${SUBSCRIBE_URL}"
+
         printf "${GREEN}📱 正在生成节点订阅二维码...${NC}\n"
         docker exec icmp9 qrencode -t ANSIUTF8 -m 1 -l H "${SUBSCRIBE_URL}" || {
             printf "\n${YELLOW}⚠️ 二维码生成失败${NC}\n"
         }
+
     else
         # --- 临时隧道 ---
         printf "\n${CYAN}⏳ 正在等待 Cloudflare 分配临时域名 (超时60秒)...${NC}\n"
@@ -358,16 +416,19 @@ if [ "$START_NOW" = "y" ] || [ "$START_NOW" = "Y" ]; then
         while [ $ELAPSED -lt $TIMEOUT ]; do
             # 抓取日志
             LOG_URL=$(docker logs icmp9 2>&1 | grep -oE "https://[a-zA-Z0-9-]+\.trycloudflare\.com/${API_KEY}" | tail -n 1)
+            
             if [ -n "$LOG_URL" ]; then
                 FOUND_URL="$LOG_URL"
                 break
             fi
+            
             printf "."
             sleep $INTERVAL
             ELAPSED=$((ELAPSED + INTERVAL))
         done
         
         echo ""
+
         if [ -n "$FOUND_URL" ]; then
             printf "\n${GREEN}✅ 临时域名获取成功！${NC}\n\n"
             printf "${GREEN}✈️ 节点订阅地址:${NC}\n"
@@ -382,6 +443,7 @@ if [ "$START_NOW" = "y" ] || [ "$START_NOW" = "Y" ]; then
             printf "${CYAN}docker logs icmp9${NC}\n\n"
         fi
     fi
+
 else
     warn "ℹ️ 已取消启动。您可以稍后运行 '$DOCKER_COMPOSE_CMD up -d' 启动。"
 fi
