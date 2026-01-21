@@ -14,7 +14,7 @@ error() { printf "${RED}%s${NC}\n" "$1"; }
 
 # 注册清理函数：脚本退出或中断时自动清理临时文件
 cleanup() {
-    rm -f /tmp/icmp9_ap_list.txt
+    rm -f /tmp/icmp9_ap_list.txt /tmp/icmp9_regions.json /tmp/icmp9_endpoints.txt
 }
 trap cleanup EXIT
 
@@ -50,12 +50,12 @@ if ! command -v jq >/dev/null 2>&1; then
 fi
 
 # ----------------------------------------------------------------
-# 1. API 连通性预检测
+# 1. ICMP9 API 连通性预检测
 # ----------------------------------------------------------------
 
 # 1.1 检查 ICMP9 网络接入点列表 API (核心前置检测)
 info "📡 正在检查 ICMP9 可用网络接入点 API 连接状态..."
-AP_URL="https://icmp9.b.4.8.f.0.7.4.0.1.0.0.2.ip6.arpa/access-points.php"
+AP_URL="https://icmp9.b.4.8.f.0.7.4.0.1.0.0.2.ip6.arpa/endpoints.php"
 AP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 -A "Mozilla/5.0" "$AP_URL")
 
 if [ "$AP_CODE" = "200" ]; then
@@ -158,10 +158,10 @@ while [ -z "$API_KEY" ]; do
 done
 
 # ICMP9 网络接入点选择
-printf "\n2. 请选择 ICMP9 网络接入点 (Access Point):\n"
+printf "\n2. 请选择 ICMP9 网络接入点:\n"
 info "📥 正在获取ICMP9最新网络接入点列表..."
 
-# 再次获取数据 (已在前置检测中确认可连通)
+# 获取数据
 AP_JSON=$(curl -s --max-time 15 "$AP_URL")
 
 if [ -z "$AP_JSON" ]; then
@@ -170,55 +170,96 @@ if [ -z "$AP_JSON" ]; then
     exit 1
 fi
 
-# 解析并筛选 is_active=1 的节点
-ACTIVE_LIST=$(echo "$AP_JSON" | jq -r '.data.list[] | select(.is_active==1) | "\(.name)|\(.domain)"')
+# 预处理
+echo "$AP_JSON" | jq -c '.data.regions[]' > /tmp/icmp9_regions.json
 
-if [ -z "$ACTIVE_LIST" ]; then
-    error "❌ 未找到任何可用的 ICMP9 网络接入点 (is_active=1)！"
+if [ ! -s /tmp/icmp9_regions.json ]; then
+    error "❌ 未找到任何ICMP9 网络接入点区域数据！请检查 API 返回结构。"
     error "⛔️ 脚本已停止运行。"
     exit 1
 fi
 
-# 缓存到临时文件
-echo "$ACTIVE_LIST" > /tmp/icmp9_ap_list.txt
+# 清理并初始化
+rm -f /tmp/icmp9_endpoints.txt
+touch /tmp/icmp9_endpoints.txt
 
-# 显示列表
-i=1
-while IFS='|' read -r NAME DOMAIN; do
-    printf "   [%d] %s\n" "$i" "$NAME"
-    i=$((i+1))
-done < /tmp/icmp9_ap_list.txt
+# 遍历每个区域对象
+while read -r REGION_JSON; do
+    # 提取区域元数据
+    REGION_CODE=$(echo "$REGION_JSON" | jq -r '.code' | tr '[:lower:]' '[:upper:]')
+    REGION_NAME=$(echo "$REGION_JSON" | jq -r '.name')
+    
+    # 提取该区域下的 endpoints
+    NODES=$(echo "$REGION_JSON" | jq -r '.endpoints[] | "\(.name)|\(.domain)"')
+    
+    if [ -z "$NODES" ]; then continue; fi
 
-# 用户选择
-TOTAL_COUNT=$((i-1))
-printf "   请选择 [1-%d] (默认: 1): " "$TOTAL_COUNT"
-read -r AP_SELECT
-[ -z "$AP_SELECT" ] && AP_SELECT=1
+    printf "\n   ${CYAN}>>> 处理区域: %s ...${NC}\n" "$REGION_NAME"
 
-# 校验输入是否为有效数字
-case "$AP_SELECT" in
-    ''|*[!0-9]*) 
-        warn "⚠️ 输入无效，自动尝试使用默认值 1"
-        AP_SELECT=1 
-        ;;
-esac
+    # 统计节点数量
+    NODE_COUNT=$(echo "$NODES" | wc -l)
+    
+    SELECTED_DOMAIN=""
+    SELECTED_NAME=""
 
-# 提取选择的域名
-j=1
-TUNNEL_ENDPOINT=""
-while IFS='|' read -r NAME DOMAIN; do
-    if [ "$j" -eq "$AP_SELECT" ]; then
-        TUNNEL_ENDPOINT="$DOMAIN"
-        info "-> 已选择接入点: $NAME ($TUNNEL_ENDPOINT)"
-        break
+    # === 智能分支 ===
+    if [ "$NODE_COUNT" -eq 1 ]; then
+        # 自动选择
+        SELECTED_NAME=$(echo "$NODES" | cut -d '|' -f 1)
+        SELECTED_DOMAIN=$(echo "$NODES" | cut -d '|' -f 2)
+        printf "   ✅ 仅发现一个活跃节点，已自动选择: %s\n" "$SELECTED_NAME"
+    else
+        # 手动选择
+        printf "   ⚠️  存在 %s 个活跃节点，请手动指定:\n" "$NODE_COUNT"
+        
+        echo "$NODES" > /tmp/icmp9_ap_list.txt
+        
+        i=1
+        while IFS='|' read -r NAME DOMAIN; do
+            printf "      [%d] %s\n" "$i" "$NAME"
+            i=$((i+1))
+        done < /tmp/icmp9_ap_list.txt
+        
+        TOTAL_COUNT=$((i-1))
+        
+        while [ -z "$SELECTED_DOMAIN" ]; do
+            printf "      请选择 [1-%d]: " "$TOTAL_COUNT"
+            # 强制从终端读取
+            read -r SEL < /dev/tty
+            
+            case "$SEL" in
+                ''|*[!0-9]*) 
+                    warn "输入无效，请重新输入" 
+                    ;;
+                *)
+                    if [ "$SEL" -ge 1 ] && [ "$SEL" -le "$TOTAL_COUNT" ]; then
+                        LINE=$(sed -n "${SEL}p" /tmp/icmp9_ap_list.txt)
+                        SELECTED_NAME=$(echo "$LINE" | cut -d '|' -f 1)
+                        SELECTED_DOMAIN=$(echo "$LINE" | cut -d '|' -f 2)
+                        printf "      -> 已手动设置: %s\n" "$SELECTED_NAME"
+                    else
+                        warn "选项超出范围"
+                    fi
+                    ;;
+            esac
+        done
+        rm -f /tmp/icmp9_ap_list.txt
     fi
-    j=$((j+1))
-done < /tmp/icmp9_ap_list.txt
 
-# 最终校验 (如果不符合要求直接退出)
-if [ -z "$TUNNEL_ENDPOINT" ]; then
-    error "❌ 接入点选择无效或解析失败！"
-    error "⛔️ 脚本已停止运行。"
+    # 变量记录
+    ENV_VAR_NAME="ICMP9_TUNNEL_ENDPOINT_${REGION_CODE}"
+    ENV_VAR_NAME=$(echo "$ENV_VAR_NAME" | tr ' ' '_')
+    
+    echo "      - ${ENV_VAR_NAME}=${SELECTED_DOMAIN}" >> /tmp/icmp9_endpoints.txt
+
+done < /tmp/icmp9_regions.json
+
+# 读取环境变量片段
+if [ -f /tmp/icmp9_endpoints.txt ]; then
+    DOCKER_ENV_EXTRA=$(cat /tmp/icmp9_endpoints.txt)
+    info "✅ 网络接入点所有地区配置完成。"
+else
+    error "❌ 未能生成任何网络接入点配置！"
     exit 1
 fi
 # ------------------------------------
@@ -288,13 +329,13 @@ services:
     network_mode: host
     environment:
       - ICMP9_API_KEY=${API_KEY}
-      - ICMP9_TUNNEL_ENDPOINT=${TUNNEL_ENDPOINT}
       - ICMP9_CLOUDFLARED_DOMAIN=${CLOUDFLARED_DOMAIN}
       - ICMP9_CLOUDFLARED_TOKEN=${TOKEN}
       - ICMP9_IPV6_ONLY=${IPV6_ONLY}
       - ICMP9_CDN_DOMAIN=${CDN_DOMAIN}
       - ICMP9_START_PORT=${START_PORT}
       - ICMP9_NODE_TAG=${NODE_TAG}
+$(echo "$DOCKER_ENV_EXTRA")
     volumes:
       - ./data/subscribe:${WORK_DIR}/subscribe
 EOF
